@@ -1,6 +1,6 @@
-# =========================
-# MySQL Deployment & PVC
-# =========================
+# ========================================
+# MySQL PVC
+# ========================================
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -13,6 +13,9 @@ spec:
       storage: 5Gi
 
 ---
+# ========================================
+# MySQL Deployment
+# ========================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,7 +35,7 @@ spec:
           image: mysql:8.0
           env:
             - name: MYSQL_DATABASE
-              value: ecommerce
+              value: bloodbank
             - name: MYSQL_ROOT_PASSWORD
               value: root
           ports:
@@ -45,16 +48,32 @@ spec:
           persistentVolumeClaim:
             claimName: mysql-pvc
 
-# =========================
-# Backend Deployment
-# =========================
 ---
+# ========================================
+# MySQL Service
+# ========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  type: ClusterIP
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+
+---
+# ========================================
+# Backend Deployment
+# ========================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: backend
@@ -70,7 +89,7 @@ spec:
             - containerPort: 8080
           env:
             - name: SPRING_DATASOURCE_URL
-              value: jdbc:mysql://mysql:3306/ecommerce
+              value: jdbc:mysql://mysql:3306/bloodbank
             - name: SPRING_DATASOURCE_USERNAME
               value: root
             - name: SPRING_DATASOURCE_PASSWORD
@@ -78,52 +97,10 @@ spec:
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: update
 
-# =========================
-# Frontend Deployment
-# =========================
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: frontend
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: frontend
-  template:
-    metadata:
-      labels:
-        app: frontend
-    spec:
-      containers:
-        - name: frontend
-          image: mohitkumar005/ecommerce-frontend:v1
-          ports:
-            - containerPort: 8080
-          env:
-            - name: REACT_APP_BACKEND_URL
-              value: http://backend:8080
-
-# =========================
-# Services
-# =========================
----
-# MySQL Service
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql
-spec:
-  type: ClusterIP
-  selector:
-    app: mysql
-  ports:
-    - port: 3306
-      targetPort: 3306
-
----
-# Backend Service
+# ========================================
+# Backend Service (NodePort)
+# ========================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -138,7 +115,36 @@ spec:
       nodePort: 30083
 
 ---
-# Frontend Service
+# ========================================
+# Frontend Deployment
+# ========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: mohitkumar005/ecommercefrontend:v1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: REACT_APP_BACKEND_URL
+              value: http://backend:8080/back1
+
+---
+# ========================================
+# Frontend Service (NodePort)
+# ========================================
 apiVersion: v1
 kind: Service
 metadata:
